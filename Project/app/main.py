@@ -8,7 +8,7 @@ app = FastAPI()
 my_posts = [{"title":"First Post", "content":"This is the first post", "id":1}, {"title":"Second Post", "content":"This is the second post", "id":2}]
 
 # Function to get single post
-def get_post(id):
+def find_post(id):
     for p in my_posts:
         if p["id"] == id:
             return p
@@ -30,7 +30,7 @@ def get_posts():
 # Retrieving single post
 @app.get("/posts/{id}")
 def get_post(id: int):
-    post = get_post(id)
+    post = find_post(id)
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with {id} not found!")
     return {"post": post}
