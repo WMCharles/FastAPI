@@ -66,7 +66,7 @@ def get_posts():
 # Retrieving single post
 @app.get("/posts/{id}")
 def get_post(id: int):
-    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id)),)
+    cursor.execute("""SELECT * FROM posts WHERE id = %s""", [str(id)],)
     post = cursor.fetchone()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with ID {id} not found!")
@@ -95,8 +95,18 @@ def update_post(id: int, post: Post):
 # Delete Post
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int):
-    index = find_index_post(id)
-    if not index:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id {id} not found!")
-    my_posts.pop(index)
+
+    cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING *""", [str(id)])
+    post = cursor.fetchone()
+    conn.commit()
+
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with ID {id} not found!")
+    print(post)
+
+
+    # index = find_index_post(id)
+    # if not index:
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id {id} not found!")
+    # my_posts.pop(index)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
