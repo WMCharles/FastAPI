@@ -8,14 +8,25 @@ import time
 
 app = FastAPI()
 
-my_posts = [{"title":"First Post", "content":"This is the first post", "id":1}, {"title":"Second Post", "content":"This is the second post", "id":2}]
+my_posts = [
+    {
+        "title":"First Post", 
+        "content":"This is the first post", 
+        "id":1
+    }, 
+    {
+        "title":"Second Post", 
+        "content":"This is the second post", 
+        "id":2
+    }
+]
 
 # Connecting to database using Psycopg2
 
 while True:
     try:
-        conn = psycopg2.connect(host='192.168.43.163', dbname='test', user="charles", password='Access', cursor_factory=RealDictCursor)
-        cursor = conn.cursor()
+        conn = psycopg2.connect(host='192.168.43.163', dbname='fastapi', user="charles", password='Access', cursor_factory=RealDictCursor)
+        cursor = conn.cursor() #enables us to do database operations
         print("Connection was successful!")
         break
     except Exception as error:
@@ -38,6 +49,7 @@ def find_index_post(id):
 class Post(BaseModel):
     title:str
     content: Union[str, None] = None
+    published: bool = True
 
 # Base url
 @app.get("/")
@@ -47,24 +59,26 @@ def root():
 # Retrieving all posts
 @app.get("/posts")
 def get_posts():
-    return {"message": my_posts}
+    cursor.execute(""" SELECT * FROM posts""")
+    posts = cursor.fetchall()
+    return {"Posts": posts}
 
 # Retrieving single post
 @app.get("/posts/{id}")
 def get_post(id: int):
-    post = find_post(id)
+    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id)),)
+    post = cursor.fetchone()
     if not post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with {id} not found!")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with ID {id} not found!")
     return {"post": post}
 
 # Create Post
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def create_post(post: Post):
-    post_dict = post.dict()
-    post_dict["id"] = randrange(0,100)
-    my_posts.append(post_dict)
-    print(post_dict)
-    return {"message": post_dict}
+    cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *""", (post.title, post.content, post.published))
+    post = cursor.fetchone()
+    conn.commit() # To actually save the data into database
+    return {"message": post}
 
 # Update Post
 @app.put("/posts/{id}", status_code=status.HTTP_201_CREATED)
