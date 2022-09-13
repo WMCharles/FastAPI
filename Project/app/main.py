@@ -2,10 +2,26 @@ from random import randrange
 from typing import Union
 from fastapi import FastAPI, status, HTTPException, Response
 from pydantic import BaseModel
+import psycopg2
+from psycopg2.extras import RealDictCursor # gives column name and values
+import time
 
 app = FastAPI()
 
 my_posts = [{"title":"First Post", "content":"This is the first post", "id":1}, {"title":"Second Post", "content":"This is the second post", "id":2}]
+
+# Connecting to database using Psycopg2
+
+while True:
+    try:
+        conn = psycopg2.connect(host='192.168.43.163', dbname='test', user="charles", password='Access', cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        print("Connection was successful!")
+        break
+    except Exception as error:
+        print("Connection to database failed!")
+        print("Error ", error)
+        time.sleep(2)
 
 # Function to get single post
 def find_post(id):
