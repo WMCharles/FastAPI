@@ -1,17 +1,17 @@
-from random import randrange
-from typing import Union
+from typing import List
 from fastapi import FastAPI, status, HTTPException, Response, Depends
-from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor # gives column name and values
 import time
 from sqlalchemy.orm import Session
 from . import models
 from .database import engine, get_db
-models.Base.metadata.create_all(bind=engine)
+from .schemas import Post, PostResponse
+
 
 app = FastAPI()
 
+models.Base.metadata.create_all(bind=engine)
 
 # Connecting to database using Psycopg2
 
@@ -26,26 +26,21 @@ while True:
         print("Error ", error)
         time.sleep(2)
 
-class Post(BaseModel):
-    title:str
-    content: Union[str, None] = None
-    published: bool = True
-
 # Base url
 @app.get("/")
 def root():
     return {"message":"Hello Welcome"}
 
 # Retrieving all posts
-@app.get("/posts")
+@app.get("/posts", response_model=List[PostResponse])
 def get_posts(db: Session = Depends(get_db)):
     # cursor.execute(""" SELECT * FROM posts""")
     # posts = cursor.fetchall()
     posts = db.query(models.Post).all()
-    return {"Posts": posts}
+    return posts
 
 # Retrieving single post
-@app.get("/posts/{id}")
+@app.get("/posts/{id}", response_model=PostResponse)
 def get_post(id: int, db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts WHERE id = %s""", [str(id)],)
     # post = cursor.fetchone()
@@ -53,10 +48,10 @@ def get_post(id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == id).first()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with ID {id} not found!")
-    return {"post": post}
+    return post
 
 # Create Post
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
+@app.post("/posts", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 def create_post(post: Post, db: Session = Depends(get_db)):
     # cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *""", (post.title, post.content, post.published))
     # post = cursor.fetchone()
@@ -67,10 +62,10 @@ def create_post(post: Post, db: Session = Depends(get_db)):
     db.add(post)
     db.commit()
     db.refresh(post)
-    return {"message": post}
+    return post
 
 # Update Post
-@app.put("/posts/{id}", status_code=status.HTTP_201_CREATED)
+@app.put("/posts/{id}", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 def update_post(id: int, post: Post, db: Session = Depends(get_db)):
     # cursor.execute("""UPDATE posts SET title =%s, content=%s WHERE id=%s RETURNING *""", (post.title, post.content, str(id)))
     # post = cursor.fetchone()
@@ -86,7 +81,7 @@ def update_post(id: int, post: Post, db: Session = Depends(get_db)):
     db.commit()
 
 
-    return {"post": post_query.first()}
+    return post_query.first()
 
 # Delete Post
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
